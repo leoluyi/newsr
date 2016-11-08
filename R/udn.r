@@ -1,8 +1,6 @@
 #' UDN
 #'
-#' @param keyword Vector of search strings.
-#' @param date_from Begin of date of news to get with format \code{"yyyy-mm-dd"}.
-#' @param date_to End of date of news to get with format \code{"yyyy-mm-dd"}.
+#' @param dateWant \code{"yyyymmdd"}.
 #'
 #' @return
 #' data.table object with columns:

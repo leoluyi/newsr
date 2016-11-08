@@ -7,11 +7,7 @@
 getAllNewsUdn(dateWant, sleepBetween = 5, sleepTime = 1, printSts = TRUE)
 }
 \arguments{
-\item{keyword}{Vector of search strings.}
-
-\item{date_from}{Begin of date of news to get with format \code{"yyyy-mm-dd"}.}
-
-\item{date_to}{End of date of news to get with format \code{"yyyy-mm-dd"}.}
+\item{dateWant}{\code{"yyyymmdd"}.}
 }
 \value{
 data.table object with columns:
