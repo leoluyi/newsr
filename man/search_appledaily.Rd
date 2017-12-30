@@ -20,7 +20,6 @@ data.table object with columns:
 Search appledaily
 }
 \examples{
-search_appledaily(c("老年", "保險"))
+search_appledaily(c("老年", "保險"), date_from = Sys.Date())
 
 }
-

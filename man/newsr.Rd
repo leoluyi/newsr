@@ -17,9 +17,11 @@ It has following news resources:
 \item UDN 聯合新聞網
 \item China Times 中時電子報
 \item ETtoday 東森新聞雲
+\item CTEE 工商時報 (工商e報)
+\item
+\item
 }
 }
 \author{
 LU YI
 }
-

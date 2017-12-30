@@ -19,8 +19,9 @@ Imports:
     stringr,
     data.table,
     parallel,
-    lubridate (>= 1.6.0)
+    lubridate (>= 1.6.0),
+    pbapply
 Suggests:
     RSQLite,
     dplyr
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1
