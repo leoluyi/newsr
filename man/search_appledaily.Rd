@@ -2,7 +2,7 @@
 % Please edit documentation in R/appledaily.R
 \name{search_appledaily}
 \alias{search_appledaily}
-\title{Search appledaily}
+\title{Search AppleDaily}
 \usage{
 search_appledaily(keyword, date_from = "2003-05-02", date_to = Sys.Date())
 }
@@ -17,7 +17,7 @@ search_appledaily(keyword, date_from = "2003-05-02", date_to = Sys.Date())
 data.table object with columns:
 }
 \description{
-Search appledaily
+Search AppleDaily
 }
 \examples{
 search_appledaily(c("老年", "保險"), date_from = Sys.Date())
