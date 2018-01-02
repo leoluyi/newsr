@@ -4,7 +4,8 @@
 \alias{search_appledaily}
 \title{Search AppleDaily}
 \usage{
-search_appledaily(keyword, date_from = "2003-05-02", date_to = Sys.Date())
+search_appledaily(keyword, date_from = "2003-05-02", date_to = Sys.Date(),
+  max_page = NULL, nb_core = "auto")
 }
 \arguments{
 \item{keyword}{Vector of search strings.}
@@ -12,6 +13,10 @@ search_appledaily(keyword, date_from = "2003-05-02", date_to = Sys.Date())
 \item{date_from}{Begin of date of news to get with format \code{"yyyy-mm-dd"}.}
 
 \item{date_to}{End of date of news to get with format \code{"yyyy-mm-dd"}.}
+
+\item{max_page}{Max page of news to get. \code{NULL} for all pages.}
+
+\item{nb_core}{Number of cores.}
 }
 \value{
 data.table object with columns:

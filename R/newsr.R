@@ -19,7 +19,7 @@
 #' @author LU YI
 #'
 #' @docType package
-#' @import methods magrittr httr rvest stringr lubridate parallel
+#' @import methods magrittr httr rvest stringr parallel
 #' @importFrom utils head tail
 #' @importFrom data.table data.table rbindlist
 #' @importFrom xml2 read_html

@@ -19,6 +19,7 @@ Imports:
     stringr,
     data.table,
     parallel,
+    parsedate,
     lubridate (>= 1.6.0),
     pbapply
 Suggests:

@@ -3,6 +3,8 @@
 #' @param keyword Vector of search strings.
 #' @param date_from Begin of date of news to get with format \code{"yyyy-mm-dd"}.
 #' @param date_to End of date of news to get with format \code{"yyyy-mm-dd"}.
+#' @param max_page Max page of news to get. \code{NULL} for all pages.
+#' @param nb_core Number of cores.
 #'
 #' @return
 #' data.table object with columns:
@@ -10,21 +12,24 @@
 #' @examples
 #' search_appledaily(c("老年", "保險"), date_from = Sys.Date())
 #'
-#' @import pbapply
+#' @import pbapply httr rvest data.table stringr
+#' @importFrom lubridate ymd
+#' @importFrom parsedate parse_iso_8601
 #' @export
 search_appledaily <- function(keyword,
                               date_from = "2003-05-02",
-                              date_to = Sys.Date()) {
+                              date_to = Sys.Date(),
+                              max_page = NULL,
+                              nb_core = "auto") {
   # date_from = "2016-10-01"
   # date_to = Sys.Date()
   # keyword = c("老年")
+  # max_page = 1
+  # nb_core = "auto"
 
   keyword <- paste0(keyword, collapse = " AND ")
   message(">> Searching keywords: ", keyword, "...")
 
-  date_from <- date_from %>%
-    ymd(tz = "ROC") %>%
-    strftime(tz = "ROC", "%Y%m%d")
   date_from <- date_from %>%
     lubridate::ymd(tz = "ROC") %>%
     strftime(tz = "ROC", "%Y%m%d")
@@ -34,11 +39,15 @@ search_appledaily <- function(keyword,
   date_int <- sprintf("[%s TO %s]", date_from, date_to)
 
   ## Get max page
-  max_page <- maxpage_appledaily(keyword, date_int)
-  if (max_page == -Inf) {
+  max_page_ <- maxpage_appledaily(keyword, date_int)
+  if (max_page_ == -Inf) {
     message("No news result found.")
     return(invisible(NULL))
   }
+  if (is.null(max_page)) {
+    max_page <- max_page_
+  }
+
   message(">> Getting ", max_page, " pages...")
 
   # for (i in 1:max_page) {
@@ -73,13 +82,13 @@ search_appledaily <- function(keyword,
   )
   # print(c(list(search_result), res_list)) # for debug
   search_result <- rbindlist(c(list(search_result), res_list))
-  search_result[, news_url := news_url %>%
-                  str_extract("^.*(?=/applesearch)")] #%>%  # normalize url
+  # search_result[, news_url := news_url %>%
+  #                 str_extract("^.*(?=/applesearch)")] #%>%  # normalize url
     # .[, c("title", "description") := NULL] # drop unused columns
 
   message("\n\n>> ", search_result %>% nrow, " news to load...")
 
-  out <- get_appledaily(search_result[, news_url], nb_core = "auto")
+  out <- get_appledaily(search_result[, news_url], nb_core = nb_core)
 
   # Prevent inconsistent number of news, e.g., caused by connection error
   # news_click <- search_result[res[, news_url], on = .(news_url)]
@@ -90,8 +99,12 @@ search_appledaily <- function(keyword,
   out
 }
 
+
 maxpage_appledaily <- function(keyword, date_int) {
-  url <- "http://search.appledaily.com.tw/appledaily/search"
+  # keyword = "老年 AND 保險"
+  # date_int = "[20030502 TO 20171230999:99]"
+
+  url <- "https://tw.appledaily.com/search"
   res <- POST(url,
               body = list(
                 searchMode = "",
@@ -100,14 +113,16 @@ maxpage_appledaily <- function(keyword, date_int) {
                 sorttype = "1",
                 keyword = keyword,
                 rangedate = date_int,
-                totalpage = "467",
+                totalpage = "582",
                 page = 1
-              ))
-  res_xml <- res %>%
-    content(as = "text", encoding = "UTF-8") %>%
-    read_html()
+              ),
+              encode = "form")
+  res_text <- res %>%
+    content(as = "text", encoding = "UTF-8")
+
   ## get max page number
-  max_page <- res_xml %>%
+  max_page <- res_text %>%
+    read_html() %>%
     html_nodes("#pageNumber a") %>%
     html_text() %>%
     stringr::str_subset("^\\d+$") %>%
@@ -115,10 +130,12 @@ maxpage_appledaily <- function(keyword, date_int) {
     max
 }
 
+
 search_appledaily_ <- function(keyword, page = 1, date_int) {
+  # keyword = "老年"
   # page = 1
   # date_int = "[20030502 TO 20160830]"
-  url <- "http://search.appledaily.com.tw/appledaily/search"
+  url <- "https://tw.appledaily.com/search"
   res <- POST(url,
               body = list(
                 searchMode = character(1L),
@@ -129,7 +146,8 @@ search_appledaily_ <- function(keyword, page = 1, date_int) {
                 rangedate = date_int,
                 totalpage = "467",
                 page = page
-              ))
+              ),
+              encode = "form")
   # cat(status_code(res), "<<", url, "\n")  # for debug
   if (identical(status_code(res), 200L)) {
     res_xml <- res %>% content(as = "parsed", encoding = "UTF-8")
@@ -143,11 +161,11 @@ search_appledaily_ <- function(keyword, page = 1, date_int) {
     read_html()
   ## get title, url, description, ...
   title <- res_xml %>%
-    html_nodes("h2 a:not(.nextmedia)") %>%
+    html_nodes("#result h2 a:not(.nextmedia)") %>%
     html_text() %>%
     str_trim()
   news_url <- res_xml %>%
-    html_nodes("h2 a:not(.nextmedia)") %>%
+    html_nodes("#result h2 a:not(.nextmedia)") %>%
     html_attr("href")
   description <- res_xml %>%
     html_nodes("#result p") %>%
@@ -164,64 +182,78 @@ get_appledaily_ <- function(url) {
   # url = "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/"
   # url = "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938415"
   # url = "http://www.appledaily.com.tw/realtimenews/article/entertainment/20170322/1081808"
-  ua <- user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.110 Safari/537.36")
+  ua <- httr::user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36")
 
   res <- GET(url, ua)
-  if (identical(status_code(res), 200L)) {
+  if (status_code(res) == 200L) {
     res_xml <- res %>% content(as = "parsed", encoding = "UTF-8")
   } else {
     warning("http error: ", url)
     return(NULL)
   }
 
-  location_301 <- res %>% content(encoding = "UTF-8") %>%
-    html_nodes("script:contains('window.location.href')")
-  if (length(location_301) == 1) {
-    url_base <- res$all_headers[[1]]$headers$location %>% parse_url() %>% .$hostname
-    new_url <- paste0("http://", url_base,
-                      location_301 %>%
-                        as.character() %>%
-                        str_extract('(?<=href=\").*(?=\"</script>)'))
-    res_xml <- GET(new_url, ua) %>% content()
-  }
+  # location_301 <- res %>% content(encoding = "UTF-8") %>%
+  #   html_nodes("script:contains('window.location.href')")
+  # if (length(location_301) == 1) {
+  #   url_base <- res$all_headers[[1]]$headers$location %>% parse_url() %>% .$hostname
+  #   new_url <- paste0("http://", url_base,
+  #                     location_301 %>%
+  #                       as.character() %>%
+  #                       str_extract('(?<=href=\").*(?=\"</script>)'))
+  #   res_xml <- GET(new_url, ua) %>% content()
+  # }
 
   tryCatch({
     ## Title
     title <- res_xml %>%
-      html_nodes("#h1") %>%
+      html_nodes("h1") %>%
       html_text() %>%
+      .[1] %>%
       str_trim
     subtitle <- res_xml %>%
-      html_nodes("#h2") %>%
+      html_nodes("hgroup h2") %>%
       html_text() %>%
+      .[1] %>%
       str_trim
     if (length(subtitle) == 0) {subtitle <- NA_character_}
+
     ## Get news content
     news_text <- res_xml %>%
-      html_nodes("#summary") %>%
+      # html_nodes("#summary") %>%
+      html_nodes(".ndArticle_margin > p, .ndArticle_margin > h2") %>%
       html_text() %>%
+      str_c(collapse = "\n") %>%
+      str_replace_all("(?:\r\n|\r)+", "\n") %>%
+      # str_replace("(?s)if[(]confirmOMOAdvFlag[(][)]{2}.+$", "") %>%
       str_trim
-    if (length(news_text) == 0) {
-      content_nodes <- res_xml %>%
-        html_nodes("div.articulum.trans")
-      if (content_nodes %>% xml_find_all("//script") %>% length()) {
-        content_nodes %>% xml_find_all("//script") %>% xml_remove()
-      }
-      news_text <- content_nodes %>%
-        html_text() %>%
-        str_c("\n") %>%
-        str_trim
-    }
-    if (nchar(news_text) == 0) {
-      news_text <- res_xml %>% html_nodes("#introid, #bcontent") %>%
-        html_text() %>%
-        str_trim %>% paste(collapse = "\n")
-    }
+    # if (length(news_text) == 0) {
+    #   content_nodes <- res_xml %>%
+    #     html_nodes("div.articulum.trans")
+    #   if (content_nodes %>% xml_find_all("//script") %>% length()) {
+    #     content_nodes %>% xml_find_all("//script") %>% xml_remove()
+    #   }
+    #   news_text <- content_nodes %>%
+    #     html_text() %>%
+    #     str_c("\n") %>%
+    #     str_trim
+    # }
+    # if (nchar(news_text) == 0) {
+    #   news_text <- res_xml %>% html_nodes("#introid, #bcontent") %>%
+    #     html_text() %>%
+    #     str_trim %>% paste(collapse = "\n")
+    # }
+
+    json_data <- res_xml %>% html_nodes('script[type="application/ld+json"]') %>%
+      html_text %>% jsonlite::fromJSON()
+
     ## keywords
-    keywords <- res_xml %>%
-      html_nodes('head > meta[name="keywords"]') %>%
-      html_attr("content") %>%
-      str_trim
+    # keywords <- res_xml %>%
+    #   html_nodes('head > meta[name="keywords"]') %>%
+    #   html_attr("content") %>%
+    #   str_trim
+    keywords <- json_data$keywords %>%
+      str_c(collapse = " ")
+
     ## author
     author <- news_text %>%
       str_match("(?<=[【(（])([^】╱／/)）]+)[╱／/].*報導") %>%
@@ -232,14 +264,16 @@ get_appledaily_ <- function(url) {
       html_node(".gggs time") %>%
       html_text() %>%
       str_trim
+    datetime_text <- json_data$datePublished
 
-    if (!str_detect(datetime_text, ":")) {
-      datetime_text <- str_c(datetime_text, "00:00")
-    }
+    # if (!str_detect(datetime_text, ":")) {
+    #   datetime_text <- str_c(datetime_text, "00:00")
+    # }
 
     datetime <- datetime_text %>%
-      strptime(tz = "ROC", "%Y年%m月%d日%H:%M") %>%
-      as.POSIXct()
+      # strptime(tz = "ROC", "%Y年%m月%d日%H:%M") %>%
+      # as.POSIXct()
+      parsedate::parse_iso_8601()
 
     out <- data.table(news_source = "蘋果日報",
                       title, subtitle, datetime, news_text, author, keywords)
@@ -250,6 +284,21 @@ get_appledaily_ <- function(url) {
   out
 }
 
+
+#' Get Appledaily content with urls
+#'
+#' @param urls Links of news.
+#' @param nb_core Number of cores.
+#'
+#' @return
+#' @export
+#' @examples
+#' urls = c(
+#'    "http://www.appledaily.com.tw/appledaily/article/finance/20160626/37284508/",
+#'    "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/"
+#'  )
+#'
+#' out <- get_appledaily(urls)
 get_appledaily <- function(urls, nb_core = "auto") {
   # urls = c(
   #   "http://www.appledaily.com.tw/appledaily/article/finance/20160626/37284508/",
@@ -268,6 +317,7 @@ get_appledaily <- function(urls, nb_core = "auto") {
 
   if (nb_core == "auto") {
     nb_core <- parallel::detectCores() - 1
+    message("Use ", nb_core, " cores...")
   }
   if (nb_core == 1) {
     out_list <- sapply(urls, f,
@@ -284,9 +334,11 @@ get_appledaily <- function(urls, nb_core = "auto") {
         library(data.table)
       })
 
-      out_list <- pbapply::pbsapply(cl = cl,
-                                    urls, f,
-                                    simplify  = FALSE, USE.NAMES = TRUE)
+      out_list <- pbapply::pbsapply(urls,
+                                    f,
+                                    simplify  = FALSE,
+                                    USE.NAMES = TRUE,
+                                    cl = cl)
     } else {
       stop("Only support Unix-like")
     }

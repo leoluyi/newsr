@@ -1,9 +1,10 @@
 suppressPackageStartupMessages({
-library(methods)
-library(readr)
-library(feather)
+  library(newsr)
+  library(methods)
+  library(readr)
+  # library(feather)
 })
-source("refactor_appledaily.R")
+# source("refactor_appledaily.R")
 
 # go ----------------------------------------------------------------------
 
@@ -15,26 +16,30 @@ on.exit(close(con))
 #                               data.table(),
 #                               row.names = FALSE, append = TRUE)
 
-res <- search_appledaily(c("基隆"),
-                         date_from = "2015-01-01")
-write_feather(res, "~/data/appledaily_keelung.feather")
-write_excel_csv(res, "~/data/appledaily_keelung.csv")
+out <- search_appledaily(
+  c("基隆"),
+  date_from = "2017-12-07",
+  max_page = 1
+  # ,nb_core = 1
+)
+write_feather(out, "~/data/appledaily_keelung.feather")
+write_excel_csv(out, "~/data/appledaily_keelung.csv")
 
 # DB ----------------------------------------------------------------------
 
 # library(RSQLServer)
 # library(DBI)
 # library(dplyr)
-# 
-# con <- dbConnect(RSQLServer::SQLServer(), # jTDS driver 
-#                  "TSDB_MSSQL-connection", 
+#
+# con <- dbConnect(RSQLServer::SQLServer(), # jTDS driver
+#                  "TSDB_MSSQL-connection",
 #                  database = 'TSDB_MSSQL')
-# 
+#
 # ## List tables
 # dbListTables(con)
-# 
+#
 # ## List table fields
 # dbListFields(con, 'NEWS_APPLEDAILY')
-# 
+#
 # ## Write DB
 # dbWriteTable(con, "NEWS_APPLEDAILY", res)
