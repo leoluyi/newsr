@@ -86,6 +86,11 @@ search_appledaily <- function(keyword,
   #                 str_extract("^.*(?=/applesearch)")] #%>%  # normalize url
     # .[, c("title", "description") := NULL] # drop unused columns
 
+  if (all(is.na(search_result[, news_url]))) {
+    Stop("Problem with all NA news_url. Check source code")
+    return(invisible(NULL))
+  }
+
   message("\n\n>> ", search_result %>% nrow, " news to load...")
 
   out <- get_appledaily(search_result[, news_url], nb_core = nb_core)
@@ -182,6 +187,7 @@ get_appledaily_ <- function(url) {
   # url = "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/"
   # url = "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938415"
   # url = "http://www.appledaily.com.tw/realtimenews/article/entertainment/20170322/1081808"
+  # url = "http://home.appledaily.com.tw/article/index/20171201/37861518/"
   ua <- httr::user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36")
 
   res <- GET(url, ua)
@@ -275,8 +281,9 @@ get_appledaily_ <- function(url) {
       # as.POSIXct()
       parsedate::parse_iso_8601()
 
-    out <- data.table(news_source = "蘋果日報",
-                      title, subtitle, datetime, news_text, author, keywords)
+    out <- data.table(
+      news_source = "蘋果日報",
+      title, subtitle, datetime, news_text, author, keywords)
   }, error = function(e) {
     out <<- NULL
   })
@@ -295,7 +302,9 @@ get_appledaily_ <- function(url) {
 #' @examples
 #' urls = c(
 #'    "http://www.appledaily.com.tw/appledaily/article/finance/20160626/37284508/",
-#'    "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/"
+#'    "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/",
+#'    "https://tw.appledaily.com/new/realtime/20170908/1198317",
+#'    "http://home.appledaily.com.tw/article/index/20171201/37861518/"
 #'  )
 #'
 #' out <- get_appledaily(urls)
@@ -345,15 +354,13 @@ get_appledaily <- function(urls, nb_core = "auto") {
   }
 
   tryCatch({
-    out <- rbindlist(out_list, idcol = "news_url")
+    out_list <- Filter(Negate(is.null), out_list) # remove NULL from list
+    out <- rbindlist(out_list, idcol = "news_url", fill=TRUE)
   }, error = function(e) {
     out <<- out_list
-    warning("Something went wrong with rbindlist(out_list)")
+    warning("Something went wrong with rbindlist(out_list). Return `out_list` instead")
   })
+
   out
-}
-
-get_url_appledaily <- function(date_from, date_to) {
-
 }
 

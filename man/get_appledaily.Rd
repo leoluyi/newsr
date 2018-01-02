@@ -17,7 +17,9 @@ Get Appledaily content with urls
 \examples{
 urls = c(
    "http://www.appledaily.com.tw/appledaily/article/finance/20160626/37284508/",
-   "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/"
+   "http://www.appledaily.com.tw/realtimenews/article/international/20160830/938362/",
+   "https://tw.appledaily.com/new/realtime/20170908/1198317",
+   "http://home.appledaily.com.tw/article/index/20171201/37861518/"
  )
 
 out <- get_appledaily(urls)
